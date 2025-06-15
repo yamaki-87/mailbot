@@ -21,6 +21,7 @@ jobs:
       - name: 📦 Build MailBot binary
         run: |
           go build -o mailbot ./src
+          go build -o mailbot_timecard ./batch
 
       - name: 🔐 Setup SSH key
         run: |
@@ -44,6 +45,7 @@ jobs:
       - name: 🚀 Deploy to VPS
         run: |
           scp -i key.pem -o StrictHostKeyChecking=no mailbot ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}:/opt/mailbot/mailbot
+          scp -i key.pem -o StrictHostKeyChecking=no mailbot_timecard ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}://usr/local/bin/mailbot_timecard
           scp -i key.pem -o StrictHostKeyChecking=no -r config tmpl ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}:/opt/mailbot/
           ssh -i key.pem -o StrictHostKeyChecking=no ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} <<'EOF'
           sudo systemctl daemon-reload

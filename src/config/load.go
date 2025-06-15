@@ -10,6 +10,7 @@ import (
 type AppConfig struct {
 	Log      LogConfig      `mapstructure:"log"`
 	MailTmpl MailTmplConfig `mapstructure:"mailTmpl"`
+	TimeCard TimeCard       `mapstructure:"timecard"`
 }
 
 type LogConfig struct {
@@ -21,6 +22,11 @@ type MailTmplConfig struct {
 	PaidLeave   string `mapstructure:"PaidLeave"`
 	LateArrival string `mapstructure:"LateArrival"`
 	Absence     string `mapstructure:"Absence"`
+	TimeCard    string `mapstructure:"TimeCard"`
+}
+
+type TimeCard struct {
+	Path string `mapstructure:"path"`
 }
 
 // シングルトンインスタンスとロック
