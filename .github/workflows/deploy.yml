@@ -1,0 +1,38 @@
+name: Deploy MailBot to VPS
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 🔄 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 🏗️ Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.22"
+
+      - name: 📦 Build MailBot binary
+        run: |
+          go build -o mailbot ./src
+
+      - name: 🔐 Setup SSH key
+        run: |
+          echo "$SSH_PRIVATE_KEY" > key.pem
+          chmod 600 key.pem
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+
+      - name: 🚀 Deploy to VPS
+        run: |
+          scp -i key.pem -o StrictHostKeyChecking=no mailbot ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}:/opt/mailbot/mailbot
+          ssh -i key.pem -o StrictHostKeyChecking=no ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} <<'EOF'
+          sudo systemctl restart mailbot
+          sudo systemctl status mailbot --no-pager
+          EOF

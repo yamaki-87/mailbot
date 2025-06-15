@@ -1,0 +1,20 @@
+[Unit]
+Description=MailBot Service
+After=network.target
+
+[Service]
+User={{.User}}
+Group={{.Group}}
+WorkingDirectory={{.WorkDir}}
+ExecStart={{.WorkDir}}/mailbot
+Restart=always
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+Environment="DISCORD_TOKEN={{.DISCORD_TOKEN}}"
+Environment="GMAIL_USER={{.GMAIL_USER}}"
+Environment="GMAIL_PASS={{.GMAIL_PASS}}"
+Environment="GMAIL_TO={{.GMAIL_TO}}"
+
+[Install]
+WantedBy=multi-user.target

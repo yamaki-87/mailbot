@@ -1,0 +1,7 @@
+log:
+  level: debug
+  path: logs/app.log
+
+mailTmpl:
+  PaidLeave: tmpl/paidLeave.txt
+  LateArrival: tmpl/lateArrival.txt
