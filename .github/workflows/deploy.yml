@@ -29,6 +29,18 @@ jobs:
         env:
           SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
 
+      # 二重起動チェック
+      - name: 🛑 Stop service if exists
+        run: |
+          ssh -i key.pem -o StrictHostKeyChecking=no ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} <<'EOF'
+          if systemctl list-units --full -all | grep -Fq 'mailbot.service'; then
+              echo "Stopping mailbot.service..."
+              sudo systemctl stop mailbot
+          else
+              echo "mailbot.service not found. Skipping stop."
+          fi
+          EOF
+
       - name: 🚀 Deploy to VPS
         run: |
           scp -i key.pem -o StrictHostKeyChecking=no mailbot ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}:/opt/mailbot/mailbot
