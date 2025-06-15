@@ -32,6 +32,7 @@ jobs:
       - name: 🚀 Deploy to VPS
         run: |
           scp -i key.pem -o StrictHostKeyChecking=no mailbot ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}:/opt/mailbot/mailbot
+          scp -i key.pem -o StrictHostKeyChecking=no -r config tmpl ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}:/opt/mailbot/
           ssh -i key.pem -o StrictHostKeyChecking=no ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} <<'EOF'
           sudo systemctl daemon-reload
           sudo systemctl restart mailbot
