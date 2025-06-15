@@ -11,8 +11,8 @@ import (
 const (
 	SEPERATE_SUBJECT_BODY = `/\-*-/\`
 	SEPERATE_COUNT        = 2
-	SEPERATE_SUBJECT      = "件名：\r\n"
-	SEPERATE_BODY         = "本文：\r\n"
+	SEPERATE_SUBJECT      = "件名：\n"
+	SEPERATE_BODY         = "本文：\n"
 )
 
 type Mail struct {
