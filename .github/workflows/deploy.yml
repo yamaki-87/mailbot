@@ -47,7 +47,10 @@ jobs:
           scp -i key.pem -o StrictHostKeyChecking=no mailbot ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}:/opt/mailbot/mailbot
           scp -i key.pem -o StrictHostKeyChecking=no mailbot_timecard ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}:/opt/mailbot/mailbot_timecard
           scp -i key.pem -o StrictHostKeyChecking=no -r config tmpl ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}:/opt/mailbot/
+          scp -i key.pem -o StrictHostKeyChecking=no -r ./batch/approval ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}:/opt/mailbot/approval
           ssh -i key.pem -o StrictHostKeyChecking=no ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} <<'EOF'
+          chmod +x /opt/mailbot/approval/approval.sh
+          chmod 600 /opt/mailbot/approval/approval.env
           sudo systemctl daemon-reload
           sudo systemctl restart mailbot
           EOF
