@@ -1,17 +1,13 @@
 package mail
 
 import (
-	"bytes"
-	"encoding/base64"
 	"fmt"
-	"mime/multipart"
-	"mime/quotedprintable"
 	"net/smtp"
-	"net/textproto"
 	"os"
 	"strings"
 	"time"
 
+	"github.com/jordan-wright/email"
 	"github.com/yamaki-87/mailbot/src/config"
 	"github.com/yamaki-87/mailbot/src/domain"
 	mailtmpl "github.com/yamaki-87/mailbot/src/mail_tmpl"
@@ -35,59 +31,19 @@ func SendMail(mail *mailtmpl.Mail) error {
 
 func SendMailWithAttachments(mail *mailtmpl.Mail) error {
 	pass := os.Getenv("GMAIL_PASS")
-
-	var buf bytes.Buffer
-	writer := multipart.NewWriter(&buf)
-	boundary := writer.Boundary()
-
-	header := map[string]string{
-		"From":         mail.GetFrom(),
-		"To":           mail.GetTo(),
-		"Subject":      mail.GetSubject(),
-		"MIME-Version": "1.0",
-		"Content-Type": fmt.Sprintf("multipart/mixed; boundary=%s", boundary),
-	}
-	for key, value := range header {
-		fmt.Fprintf(&buf, "%s: %s\r\n", key, value)
-	}
-	fmt.Fprintf(&buf, "\r\n")
-
-	bodyWriter, _ := writer.CreatePart(map[string][]string{
-		"Content-Type":              {"text/plain; charset=UTF-8"},
-		"Content-Transfer-Encoding": {"quoted-printable"},
-	})
-	qp := quotedprintable.NewWriter(bodyWriter)
-	qp.Write([]byte(mail.GetBody()))
-	qp.Close()
-
-	for displayName, filePath := range mail.GetAttachments() {
-
-		data, err := os.ReadFile(filePath)
-		if err != nil {
-			return fmt.Errorf("添付ファイルの読み込みに失敗しました: %v", err)
-		}
-		attachHeader := make(textproto.MIMEHeader)
-		attachHeader.Set("Content-Disposition", fmt.Sprintf("attachment; filename=\"%s\"", displayName))
-		attachHeader.Set("Content-Type", "application/octet-stream")
-		attachHeader.Set("Content-Transfer-Encoding", "base64")
-
-		part, _ := writer.CreatePart(attachHeader)
-		encoded := make([]byte, base64.StdEncoding.EncodedLen(len(data)))
-		base64.StdEncoding.Encode(encoded, data)
-
-		for i := 0; i < len(encoded); i += 76 {
-			end := i + 76
-			if end > len(encoded) {
-				end = len(encoded)
-			}
-			part.Write(encoded[i:end])
-			part.Write([]byte("\r\n"))
+	email := email.NewEmail()
+	email.From = mail.GetFrom()
+	email.To = []string{mail.GetTo()}
+	email.Subject = mail.GetSubject()
+	email.Text = []byte(mail.GetBody())
+	for _, v := range mail.GetAttachments() {
+		if _, err := email.AttachFile(v); err != nil {
+			return fmt.Errorf("failed to attach files: %w", err)
 		}
 	}
-	writer.Close()
 
 	auth := smtp.PlainAuth("", mail.GetFrom(), pass, GMAIL_SMTP)
-	return smtp.SendMail(GMAIL_SMTP_PORT, auth, mail.GetFrom(), []string{mail.GetTo()}, buf.Bytes())
+	return email.Send(GMAIL_SMTP_PORT, auth)
 }
 
 type BindFunc func(req *domain.MailSendType) map[string]string
