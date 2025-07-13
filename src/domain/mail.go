@@ -12,7 +12,9 @@ type MailSendType struct {
 }
 
 type MailArgs struct {
-	Date time.Time
+	Date   time.Time
+	Reason string
+	Half   string
 }
 
 const (
