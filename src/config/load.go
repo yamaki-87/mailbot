@@ -8,9 +8,10 @@ import (
 )
 
 type AppConfig struct {
-	Log      LogConfig      `mapstructure:"log"`
-	MailTmpl MailTmplConfig `mapstructure:"mailTmpl"`
-	TimeCard TimeCard       `mapstructure:"timecard"`
+	Log         LogConfig         `mapstructure:"log"`
+	MailTmpl    MailTmplConfig    `mapstructure:"mailTmpl"`
+	TimeCard    TimeCard          `mapstructure:"timecard"`
+	MessageTmpl MessageTmplConfig `mapstructure:"messageTmpl"`
 }
 
 type LogConfig struct {
@@ -27,6 +28,10 @@ type MailTmplConfig struct {
 
 type TimeCard struct {
 	Path string `mapstructure:"path"`
+}
+
+type MessageTmplConfig struct {
+	Help string `mapstructure:"Help"`
 }
 
 // シングルトンインスタンスとロック

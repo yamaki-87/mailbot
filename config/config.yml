@@ -9,3 +9,6 @@ mailTmpl:
 
 timecard:
   path: /tmp/mailbot_batch/勤務表.pdf
+
+messageTmpl:
+  Help: tmpl/help.txt

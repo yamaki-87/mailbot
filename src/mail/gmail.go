@@ -9,6 +9,7 @@ import (
 
 	"github.com/jordan-wright/email"
 	"github.com/yamaki-87/mailbot/src/config"
+	"github.com/yamaki-87/mailbot/src/consts"
 	"github.com/yamaki-87/mailbot/src/domain"
 	mailtmpl "github.com/yamaki-87/mailbot/src/mail_tmpl"
 	"github.com/yamaki-87/mailbot/src/utils"
@@ -108,7 +109,7 @@ func ParseMailSendType(input string) (*domain.MailSendType, error) {
 	var mail domain.MailSendType
 
 	switch {
-	case strings.HasPrefix(input, "!有給"):
+	case strings.HasPrefix(input, consts.PAIDLEAVECOMMAND):
 		if len(parts) < 2 {
 			return nil, fmt.Errorf("有給日付が指定されていません")
 		}
@@ -121,10 +122,10 @@ func ParseMailSendType(input string) (*domain.MailSendType, error) {
 			Args: domain.MailArgs{Date: t},
 		}
 
-	case strings.HasPrefix(input, "!遅延"):
+	case strings.HasPrefix(input, consts.LATECOMMAND):
 		mail = domain.MailSendType{Type: domain.LateArrival}
 
-	case strings.HasPrefix(input, "!欠勤"):
+	case strings.HasPrefix(input, consts.ABSENTCOMMAND):
 		mail = domain.MailSendType{Type: domain.Absence}
 
 	default:

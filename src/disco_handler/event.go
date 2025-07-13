@@ -7,10 +7,13 @@ import (
 
 	"github.com/bwmarrin/discordgo"
 	"github.com/rs/zerolog/log"
+	"github.com/yamaki-87/mailbot/src/command"
 	"github.com/yamaki-87/mailbot/src/config"
+	"github.com/yamaki-87/mailbot/src/consts"
 	"github.com/yamaki-87/mailbot/src/domain"
 	"github.com/yamaki-87/mailbot/src/mail"
 	mailtmpl "github.com/yamaki-87/mailbot/src/mail_tmpl"
+	"github.com/yamaki-87/mailbot/src/utils"
 )
 
 const FileName = "勤務表.pdf"
@@ -29,7 +32,7 @@ func FileHandler(s *discordgo.Session, m *discordgo.MessageCreate) {
 	for _, attachment := range m.Attachments {
 		log.Info().Msgf("受け取った添付ファイル: %s, URL: %s", attachment.Filename, attachment.URL)
 		// ここで添付ファイルの処理を行うことができます
-		if strings.HasPrefix(m.Content, "!勤務表") && attachment.ContentType == "application/pdf" {
+		if strings.HasPrefix(m.Content, consts.TIMECARDCOMMAND) && attachment.ContentType == "application/pdf" {
 			// 例えば、PDFファイルを保存するなどの処理
 			s.ChannelMessageSend(m.ChannelID, "勤務表のPDFファイルを受け取りました。")
 			resp, err := s.Request("GET", attachment.URL, nil)
@@ -94,6 +97,27 @@ func MailHandler(s *discordgo.Session, m *discordgo.MessageCreate) {
 	s.ChannelMessageSend(m.ChannelID, "✅ メール送信完了！")
 }
 
+func MessageHandler(s *discordgo.Session, m *discordgo.MessageCreate) {
+	if m.Author.Bot {
+		return
+	}
+
+	msg, err := command.HandleCommand(m.Content)
+	if err != nil {
+		log.Error().Err(err)
+		s.ChannelMessageSend(m.ChannelID, "⚠️ システム管理者に連絡してください")
+		return
+	}
+
+	if utils.IsStrEmpty(msg) {
+		log.Debug().Msg("Messageが空文字です")
+		return
+	}
+
+	s.ChannelMessageSend(m.ChannelID, msg)
+	log.Info().Msg("✅ メッセージ送信完了 command:" + m.Content)
+}
+
 func DiscordBootstrap() {
 	token := os.Getenv("DISCORD_TOKEN")
 	dg, err := discordgo.New("Bot " + token)
@@ -104,6 +128,7 @@ func DiscordBootstrap() {
 	dg.Identify.Intents = discordgo.IntentsGuilds | discordgo.IntentsGuildMessages | discordgo.IntentsGuildVoiceStates
 	dg.AddHandler(MailHandler)
 	dg.AddHandler(FileHandler)
+	dg.AddHandler(MessageHandler)
 
 	err = dg.Open()
 	if err != nil {
