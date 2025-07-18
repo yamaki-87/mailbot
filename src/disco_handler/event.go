@@ -81,7 +81,7 @@ func MailHandler(s *discordgo.Session, m *discordgo.MessageCreate) {
 	mailS, err := mailtmpl.CreateMailTmpl(mailBind, mailTmpl)
 	if err != nil {
 		s.ChannelMessageSend(m.ChannelID, "⚠️ メールテンプレート処理失敗...")
-		log.Error().Err(err)
+		log.Error().Err(err).Msg("⚠️ メールテンプレート処理失敗...")
 		return
 	}
 
@@ -89,7 +89,7 @@ func MailHandler(s *discordgo.Session, m *discordgo.MessageCreate) {
 	err = mail.SendMail(mailS)
 	if err != nil {
 		s.ChannelMessageSend(m.ChannelID, "⚠️ メール送信処理失敗...")
-		log.Error().Err(err)
+		log.Error().Err(err).Msg("⚠️ メール送信処理失敗...")
 		return
 	}
 
@@ -104,7 +104,7 @@ func MessageHandler(s *discordgo.Session, m *discordgo.MessageCreate) {
 
 	msg, err := command.HandleCommand(m.Content)
 	if err != nil {
-		log.Error().Err(err)
+		log.Error().Err(err).Msg("⚠️ システム管理者に連絡してください")
 		s.ChannelMessageSend(m.ChannelID, "⚠️ システム管理者に連絡してください")
 		return
 	}
