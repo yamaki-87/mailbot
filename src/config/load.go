@@ -20,10 +20,11 @@ type LogConfig struct {
 }
 
 type MailTmplConfig struct {
-	PaidLeave   string `mapstructure:"PaidLeave"`
-	LateArrival string `mapstructure:"LateArrival"`
-	Absence     string `mapstructure:"Absence"`
-	TimeCard    string `mapstructure:"TimeCard"`
+	PaidLeave    string `mapstructure:"PaidLeave"`
+	LateArrival  string `mapstructure:"LateArrival"`
+	Absence      string `mapstructure:"Absence"`
+	TimeCard     string `mapstructure:"TimeCard"`
+	SpecialLeave string `mapstructure:"SpecialLeave"`
 }
 
 type TimeCard struct {

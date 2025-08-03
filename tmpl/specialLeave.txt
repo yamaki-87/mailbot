@@ -1,5 +1,5 @@
 件名：
-【勤怠連絡】{{.SUBJECT_DATE}} {{.PAIDLEAVE}} {{.NAME}}
+【勤怠連絡】{{.SUBJECT_DATE}} {{.DETAIL_TYPE}} {{.NAME}}
 /\-*-/\
 本文：
 宛先各位
@@ -7,8 +7,8 @@
 お疲れ様です。
 {{.NAME}}です。
 
-{{.REASON}}、下記の日程で有休取得いたします。
-{{.DATE_HALF}}
+{{.REASON}}、下記の日程で休暇を取得いたします。
+{{.DATE}}
 
 事前に現場調整済みです。
 

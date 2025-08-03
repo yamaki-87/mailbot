@@ -7,3 +7,5 @@ func IsStrEmpty(target string) bool {
 func IsNotStrEmpty(target string) bool {
 	return !IsStrEmpty(target)
 }
+
+const SPACE = " "

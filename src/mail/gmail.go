@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/jordan-wright/email"
+	"github.com/rs/zerolog/log"
 	"github.com/yamaki-87/mailbot/src/config"
 	"github.com/yamaki-87/mailbot/src/consts"
 	"github.com/yamaki-87/mailbot/src/domain"
@@ -16,14 +17,15 @@ import (
 )
 
 const (
-	GMAIL_SMTP      = "smtp.gmail.com"
-	GMAIL_SMTP_PORT = "smtp.gmail.com:587"
-	SEPERATE        = " "
-	YYYYMMDD_LAYOUT = "2025/01/02"
-	MMDD_LAYOUT     = "1/2"
-	PAIRCOUNT       = 2
-	DEFAULT_REASON  = "私用のため"
-	DEFALUT_HALF    = "全休"
+	GMAIL_SMTP         = "smtp.gmail.com"
+	GMAIL_SMTP_PORT    = "smtp.gmail.com:587"
+	SEPERATE           = " "
+	YYYYMMDD_LAYOUT    = "2025/01/02"
+	MMDD_LAYOUT        = "1/2"
+	PAIRCOUNT          = 2
+	DEFAULT_REASON     = "私用のため"
+	DEFALUT_HALF       = "全休"
+	DATE_CMD_SEPERATOR = ","
 )
 
 func SendMail(mail *mailtmpl.Mail) error {
@@ -50,13 +52,24 @@ func SendMailWithAttachments(mail *mailtmpl.Mail) error {
 	return email.Send(GMAIL_SMTP_PORT, auth)
 }
 
+func mergeDateAndExplain(times []time.Time, explain string) string {
+	var sb strings.Builder
+	last := len(times)
+	for i, time := range times {
+		var crlf = ""
+		if i != last {
+			crlf = "\n"
+		}
+		sb.WriteString(fmt.Sprintf("・%s(%s) %s%s", time.Format(MMDD_LAYOUT), utils.GetJpnWeek(time), explain, crlf))
+	}
+	return sb.String()
+}
+
 type BindFunc func(req *domain.MailSendType) map[string]string
 
 var bindFuncMap = map[domain.MailRequestType]BindFunc{
 	domain.PaidLeave: func(req *domain.MailSendType) map[string]string {
 		name := os.Getenv("NAME")
-		mmdd := req.Args.Date.Format(MMDD_LAYOUT)
-		week := utils.GetWeekDayFromDate(mmdd)
 
 		var paidLeave = ""
 		if utils.IsStrEmpty(req.Args.Half) {
@@ -66,17 +79,17 @@ var bindFuncMap = map[domain.MailRequestType]BindFunc{
 		}
 
 		return map[string]string{
-			"NAME":      name,
-			"DATE":      fmt.Sprintf("%s(%s)", mmdd, week),
-			"REASON":    req.Args.Reason,
-			"HALF":      req.Args.Half,
-			"PAIDLEAVE": paidLeave,
+			"NAME":         name,
+			"DATE_HALF":    mergeDateAndExplain(req.Args.Dates, req.Args.Half),
+			"SUBJECT_DATE": utils.FormatDatesWithSeparator(req.Args.Dates, MMDD_LAYOUT, utils.SPACE),
+			"REASON":       req.Args.Reason,
+			"PAIDLEAVE":    paidLeave,
 		}
 	},
 	domain.LateArrival: func(req *domain.MailSendType) map[string]string {
 		name := os.Getenv("NAME")
 		mmdd := time.Now().Format(MMDD_LAYOUT)
-		week := utils.GetWeekDayFromDate(mmdd)
+		week := utils.GetWeekDayFromDateStr(mmdd)
 		return map[string]string{
 			"NAME": name,
 			"DATE": fmt.Sprintf("%s(%s)", mmdd, week),
@@ -87,14 +100,24 @@ var bindFuncMap = map[domain.MailRequestType]BindFunc{
 			"NAME": os.Getenv("NAME"),
 		}
 	},
+	domain.SpecialLeave: func(req *domain.MailSendType) map[string]string {
+		return map[string]string{
+			"NAME":         os.Getenv("NAME"),
+			"DATE":         mergeDateAndExplain(req.SpecialLeaveArgs.Dates, req.SpecialLeaveArgs.DetailType),
+			"SUBJECT_DATE": utils.FormatDatesWithSeparator(req.SpecialLeaveArgs.Dates, MMDD_LAYOUT, utils.SPACE),
+			"REASON":       req.SpecialLeaveArgs.Reason,
+			"DETAIL_TYPE":  req.SpecialLeaveArgs.DetailType,
+		}
+	},
 }
 
 type TemplatePathResolver func(cfg config.MailTmplConfig) string
 
 var templatePathMap = map[domain.MailRequestType]TemplatePathResolver{
-	domain.PaidLeave:   func(cfg config.MailTmplConfig) string { return cfg.PaidLeave },
-	domain.LateArrival: func(cfg config.MailTmplConfig) string { return cfg.LateArrival },
-	domain.Absence:     func(cfg config.MailTmplConfig) string { return cfg.Absence },
+	domain.PaidLeave:    func(cfg config.MailTmplConfig) string { return cfg.PaidLeave },
+	domain.LateArrival:  func(cfg config.MailTmplConfig) string { return cfg.LateArrival },
+	domain.Absence:      func(cfg config.MailTmplConfig) string { return cfg.Absence },
+	domain.SpecialLeave: func(cfg config.MailTmplConfig) string { return cfg.SpecialLeave },
 }
 
 type MailService struct{}
@@ -119,23 +142,32 @@ func ParseMailSendType(input string) (*domain.MailSendType, error) {
 	if len(parts) < 1 {
 		return nil, fmt.Errorf("メッセージ形式が不正です")
 	}
+	log.Debug().Msgf("input:%s", input)
 
-	var mail domain.MailSendType
+	var mail *domain.MailSendType
+	var err error
 
 	switch {
 	case strings.HasPrefix(input, consts.PAIDLEAVECOMMAND):
-		return parsePaidLeaveCommand(input)
+		mail, err = parsePaidLeaveCommand(input)
 	case strings.HasPrefix(input, consts.LATECOMMAND):
-		mail = domain.MailSendType{Type: domain.LateArrival}
+		mail = &domain.MailSendType{Type: domain.LateArrival}
 
 	case strings.HasPrefix(input, consts.ABSENTCOMMAND):
-		mail = domain.MailSendType{Type: domain.Absence}
+		mail = &domain.MailSendType{Type: domain.Absence}
 
+	case strings.HasPrefix(input, consts.SPECIALLEAVECOMMAND):
+		mail, err = parseSpecialLeaveCommand(input)
 	default:
 		return &domain.MailSendType{Type: domain.Unknown}, nil
 	}
 
-	return &mail, nil
+	if err != nil {
+		return nil, err
+	}
+	mail.SetIsTest(strings.Contains(input, consts.ISTEST))
+
+	return mail, err
 }
 func parseKeyValueArgs(args []string) map[string]string {
 	result := make(map[string]string)
@@ -165,7 +197,7 @@ func parsePaidLeaveCommand(input string) (*domain.MailSendType, error) {
 	if utils.IsStrEmpty(date) {
 		return nil, fmt.Errorf("有給日付が指定されていません")
 	}
-	t, err := time.Parse(MMDD_LAYOUT, strings.TrimSpace(date))
+	times, err := dateParse(date)
 	if err != nil {
 		return nil, fmt.Errorf("日付の形式が不正です: %v", err)
 	}
@@ -183,8 +215,65 @@ func parsePaidLeaveCommand(input string) (*domain.MailSendType, error) {
 
 	mail := domain.MailSendType{
 		Type: domain.PaidLeave,
-		Args: domain.MailArgs{Date: t, Reason: reason, Half: half},
+		Args: domain.MailArgs{Dates: times, Reason: reason, Half: half},
 	}
 
 	return &mail, nil
+}
+
+func parseSpecialLeaveCommand(input string) (*domain.MailSendType, error) {
+	fields := strings.Fields(input)
+	args := fields[1:]
+
+	dataMap := parseKeyValueArgs(args)
+
+	// 日付処理
+	date := dataMap["date"]
+	if utils.IsStrEmpty(date) {
+		return nil, fmt.Errorf("特別休暇日付が指定されていません")
+	}
+	times, err := dateParse(date)
+	if err != nil {
+		return nil, fmt.Errorf("日付の形式が不正です: %v", err)
+	}
+
+	detailType := dataMap["type"]
+	if utils.IsStrEmpty(detailType) {
+		return nil, fmt.Errorf("詳細な休暇種別を指定してください ex:夏季休暇etc")
+	}
+
+	reason := dataMap["reason"]
+	if utils.IsStrEmpty(reason) {
+		reason = DEFAULT_REASON
+	}
+
+	mail := domain.MailSendType{
+		Type:             domain.SpecialLeave,
+		SpecialLeaveArgs: domain.SpecialLeaveMailArgs{Dates: times, Reason: reason, DetailType: detailType},
+	}
+
+	return &mail, nil
+}
+
+// dateコマンドをparse
+//
+// dateStr:解析対象文字列
+//
+// input:"1/1,12/31" -> output [1/1,12/31]
+//
+// input:"1/1" -> output [1/1]
+func dateParse(dateStr string) ([]time.Time, error) {
+	result := []time.Time{}
+	dateStrs := strings.Split(dateStr, DATE_CMD_SEPERATOR)
+	for _, date := range dateStrs {
+		if utils.IsStrEmpty(date) {
+			continue
+		}
+		t, err := time.Parse(MMDD_LAYOUT, strings.TrimSpace(date))
+		if err != nil {
+			return nil, fmt.Errorf("有給日付が指定されていません")
+		}
+		result = append(result, t)
+	}
+	return result, nil
 }

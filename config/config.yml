@@ -6,6 +6,7 @@ mailTmpl:
   PaidLeave: tmpl/paidLeave.txt
   LateArrival: tmpl/lateArrival.txt
   TimeCard: tmpl/timeCard.txt
+  SpecialLeave: tmpl/specialLeave.txt
 
 timecard:
   path: /tmp/mailbot_batch/勤務表.pdf

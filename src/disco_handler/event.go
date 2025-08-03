@@ -18,6 +18,8 @@ import (
 
 const FileName = "勤務表.pdf"
 
+var mailChache = NewMailStore()
+
 func FileHandler(s *discordgo.Session, m *discordgo.MessageCreate) {
 	if m.Author.Bot {
 		return
@@ -62,6 +64,10 @@ func MailHandler(s *discordgo.Session, m *discordgo.MessageCreate) {
 		return
 	}
 
+	// !yは別のhandlerで処理
+	if strings.HasPrefix(m.Content, consts.YESOPTIONCOMMAND) {
+		return
+	}
 	mailSendType, err := mail.ParseMailSendType(m.Content)
 	if err != nil {
 		log.Err(err)
@@ -85,16 +91,14 @@ func MailHandler(s *discordgo.Session, m *discordgo.MessageCreate) {
 		return
 	}
 
-	s.ChannelMessageSend(m.ChannelID, "📤 有給メールを送信します...")
-	err = mail.SendMail(mailS)
-	if err != nil {
-		s.ChannelMessageSend(m.ChannelID, "⚠️ メール送信処理失敗...")
-		log.Error().Err(err).Msg("⚠️ メール送信処理失敗...")
+	// -tがあれば送り前の草文を見せる
+	if mailSendType.IsTest {
+		s.ChannelMessageSend(m.ChannelID, fmt.Sprintf("件名:%s\n本文:%s", mailS.GetSubject(), mailS.GetBody()))
+		s.ChannelMessageSend(m.ChannelID, "🌐 メール送信しますか? !y -> 送信")
+		mailChache.Set(m.Author.ID, NewSessionState(mailS))
 		return
 	}
-
-	log.Info().Msg("✅ メール送信完了！")
-	s.ChannelMessageSend(m.ChannelID, "✅ メール送信完了！")
+	sendMail(s, m, mailS)
 }
 
 func MessageHandler(s *discordgo.Session, m *discordgo.MessageCreate) {
@@ -118,6 +122,46 @@ func MessageHandler(s *discordgo.Session, m *discordgo.MessageCreate) {
 	log.Info().Msg("✅ メッセージ送信完了 command:" + m.Content)
 }
 
+func YesOptHandler(s *discordgo.Session, m *discordgo.MessageCreate) {
+	if m.Author.Bot {
+		return
+	}
+
+	content := m.Content
+	if !strings.HasPrefix(content, consts.YESOPTIONCOMMAND) {
+		return
+	}
+
+	if mailChache.IsEmpty() {
+		log.Debug().Msg("メールキャッシュは空のため処理終了")
+		return
+	}
+
+	userID := m.Author.ID
+	sessionState, ok := mailChache.Get(userID)
+	if ok {
+		sendMail(s, m, sessionState.GetMail())
+	} else {
+		log.Warn().Msg("userIDからメールから取得できません")
+		s.ChannelMessageSend(m.ChannelID, "⚠️ userIDからメールから取得できません...")
+		return
+	}
+	mailChache.Delete(userID)
+}
+
+func sendMail(s *discordgo.Session, m *discordgo.MessageCreate, mailS *mailtmpl.Mail) {
+	s.ChannelMessageSend(m.ChannelID, "📤 有給メールを送信します...")
+	err := mail.SendMail(mailS)
+	if err != nil {
+		s.ChannelMessageSend(m.ChannelID, "⚠️ メール送信処理失敗...")
+		log.Error().Err(err).Msg("⚠️ メール送信処理失敗...")
+		return
+	}
+
+	log.Info().Msg("✅ メール送信完了！")
+	s.ChannelMessageSend(m.ChannelID, "✅ メール送信完了！")
+}
+
 func DiscordBootstrap() {
 	token := os.Getenv("DISCORD_TOKEN")
 	dg, err := discordgo.New("Bot " + token)
@@ -129,6 +173,7 @@ func DiscordBootstrap() {
 	dg.AddHandler(MailHandler)
 	dg.AddHandler(FileHandler)
 	dg.AddHandler(MessageHandler)
+	dg.AddHandler(YesOptHandler)
 
 	err = dg.Open()
 	if err != nil {
@@ -136,5 +181,6 @@ func DiscordBootstrap() {
 	}
 	defer dg.Close()
 	log.Info().Msg("Bot起動中。Ctrl+Cで終了")
+	StartSessionTimeoutWatcher(mailChache)
 	select {} // 無限待機
 }
