@@ -9,7 +9,7 @@ mailTmpl:
   SpecialLeave: tmpl/specialLeave.txt
 
 timecard:
-  path: /tmp/mailbot_batch/勤務表.pdf
+  path: /tmp/mailbot_batch/勤務表.xlsx
 
 messageTmpl:
   Help: tmpl/help.txt

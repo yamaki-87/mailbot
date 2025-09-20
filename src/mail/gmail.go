@@ -265,15 +265,18 @@ func parseSpecialLeaveCommand(input string) (*domain.MailSendType, error) {
 func dateParse(dateStr string) ([]time.Time, error) {
 	result := []time.Time{}
 	dateStrs := strings.Split(dateStr, DATE_CMD_SEPERATOR)
+	year := time.Now().Year()
 	for _, date := range dateStrs {
 		if utils.IsStrEmpty(date) {
 			continue
 		}
-		t, err := time.Parse(MMDD_LAYOUT, strings.TrimSpace(date))
+		t, err := time.ParseInLocation(MMDD_LAYOUT, strings.TrimSpace(date), time.Local)
 		if err != nil {
 			return nil, fmt.Errorf("有給日付が指定されていません")
 		}
-		result = append(result, t)
+		// mmdd形式だと西暦が0000のままになってしまい、曜日計算がずれるのでfix
+		fixed := time.Date(year, t.Month(), t.Day(), t.Hour(), t.Minute(), t.Second(), t.Nanosecond(), time.Local)
+		result = append(result, fixed)
 	}
 	return result, nil
 }
