@@ -56,7 +56,7 @@ func main() {
 	log.Info().Msg("TimeCard mail sent successfully")
 }
 func createBind() map[string]string {
-	t := time.Now()
+	t := time.Now().Local().AddDate(0, -1, 0)
 	bind := make(map[string]string)
 	bind["MONTH"] = t.Format("1月")
 	bind["NAME"] = os.Getenv("NAME")

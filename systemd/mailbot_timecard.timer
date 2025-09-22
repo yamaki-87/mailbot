@@ -1,0 +1,10 @@
+[Unit]
+Description=Mailbot TimeCard on the 1st day of the month 1AM
+
+[Timer]
+# 毎月1日の午前1時に起動
+OnCalendar=*-*-01 01:00:00
+Unit=mailbot_timecard.service
+
+[Install]
+WantedBy=timers.target
